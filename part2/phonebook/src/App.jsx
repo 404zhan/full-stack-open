@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Person from './components/Person'
 import Filter from './components/Filter'
 import Form from './components/Form'
-import axios from 'axios'
+import contactService from './services/Person'
 
 const App = () => {
   const [persons, setPersons] = useState([]) 
@@ -11,11 +11,7 @@ const App = () => {
   const [filterName, setFilterName] = useState('')
   
   useEffect(() => {
-    console.log('effect')
-    axios.get('http://localhost:3001/persons').then(response => {
-      console.log('promise fulfilled')
-      setPersons(response.data)
-    })
+    contactService.getAll().then(initialData => setPersons(initialData))
   }, [])
 
   const personsToShow = filterName === '' ? persons : persons.filter(x => x.name.toLowerCase().includes(filterName.toLowerCase()))
@@ -31,28 +27,46 @@ const App = () => {
   const handleClick = (event) => {
     event.preventDefault()
     if (persons.some(p => p.name === newName)){
-      alert(`${newName} already exists`)
+      if(window.confirm(`${newName} already exists in the phonebook, you wanna replace that?`)){
+        const contactToReplace = persons.find(p => p.name === newName)
+        const changedContact = {...contactToReplace, number: newNumber}
+        contactService.update(contactToReplace.id, changedContact)
+        .then(changedNumber => {
+          setPersons(persons.map(x => x.id === contactToReplace.id ? changedNumber : x))
+        })
+      }
       return
     }
     const newPerson = {
       name: newName,
-      id: String(persons.length+1),
       number: newNumber
     }
-    console.log(newPerson)
-    setPersons(persons.concat(newPerson))
-    setNewName('')
+    contactService.create(newPerson).then(newContact => {
+      setPersons(persons.concat(newContact))
+      setNewName('')
+      setNewNumber('')
+    })
+  }
+  
+  const deleteContactId = (id) => {
+    const guy = persons.find(n => n.id === id)
+    if (window.confirm(`Do you want to remove ${guy.name}?`)){
+      contactService.del(id).then(() => {
+      setPersons(persons.filter(p => p.id !== id))
+    })
+    }
   }
 
   return (
     <div>
       <h2>Phonebook</h2>
       <Filter value = {filterName} onChange={handleChangeFilter}/>
+      <h2>Add new one</h2>
       <Form valname = {newName} onChangeNam = {handleChangeName} valnum = {newNumber} onChangeNum = {handleChangeNum} onClick = {handleClick}/>
       <h2>Numbers</h2>
       <ul>
         {personsToShow.map((person) => 
-          <Person person = {person} key = {person.id}/>
+          <Person person = {person} key = {person.id} delContact = {() => {deleteContactId(person.id)}}/>
         )}
       </ul>
     </div>

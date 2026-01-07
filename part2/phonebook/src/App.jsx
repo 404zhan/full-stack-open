@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react'
 import Person from './components/Person'
 import Filter from './components/Filter'
 import Form from './components/Form'
+import Notification from './components/Notification'
 import contactService from './services/Person'
+import './index.css'
 
 const App = () => {
   const [persons, setPersons] = useState([]) 
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filterName, setFilterName] = useState('')
+  const [showError, setShowError] = useState('Nothing to show....')
   
   useEffect(() => {
     contactService.getAll().then(initialData => setPersons(initialData))
@@ -33,6 +36,12 @@ const App = () => {
         contactService.update(contactToReplace.id, changedContact)
         .then(changedNumber => {
           setPersons(persons.map(x => x.id === contactToReplace.id ? changedNumber : x))
+        }).catch(error => {
+          setShowError(`Information of ${contactToReplace.name} has already been removed`)
+          setPersons(persons.filter(p => p.id !== contactToReplace.id))
+          setTimeout(() => {
+            setShowError(null)
+          }, 5000)
         })
       }
       return
@@ -43,6 +52,12 @@ const App = () => {
     }
     contactService.create(newPerson).then(newContact => {
       setPersons(persons.concat(newContact))
+      setShowError(
+          `Added ${newPerson.name}`
+      )
+      setTimeout(() => {
+        setShowError(null)
+      }, 5000)
       setNewName('')
       setNewNumber('')
     })
@@ -60,6 +75,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message = {showError}/>
       <Filter value = {filterName} onChange={handleChangeFilter}/>
       <h2>Add new one</h2>
       <Form valname = {newName} onChangeNam = {handleChangeName} valnum = {newNumber} onChangeNum = {handleChangeNum} onClick = {handleClick}/>
